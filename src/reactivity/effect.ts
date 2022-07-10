@@ -2,18 +2,20 @@
  * @Author: Heyafeng
  * @Date: 2022-07-10 10:48:36
  * @LastEditors: Heyafeng
- * @LastEditTime: 2022-07-10 12:03:40
+ * @LastEditTime: 2022-07-10 12:39:36
  * @Description: effect
  */
 class ReactiveEffect {
   private _fn: any
-  constructor(fn: Function) {
+  public scheduler: any
+  constructor(fn: Function, scheduler?) {
     this._fn = fn
+    this.scheduler = scheduler
   }
 
   run() {
     activeEffect = this
-    this._fn()
+    return this._fn()
   }
 }
 
@@ -47,12 +49,18 @@ export function trigger(target, key) {
 
   // 遍历实例并运行run方法 以此更新数据
   for (const effect of dep) {
-    effect.run()
+    if (effect.scheduler) {
+      effect.scheduler()
+    } else {
+      effect.run()
+    }
   }
 }
 
 let activeEffect
-export function effect(fn: Function) {
-  const _effect = new ReactiveEffect(fn)
+export function effect(fn: Function, options: any = {}) {
+  const _effect = new ReactiveEffect(fn, options.scheduler)
   _effect.run()
+
+  return _effect.run.bind(_effect)
 }
