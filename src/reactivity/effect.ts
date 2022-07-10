@@ -1,14 +1,19 @@
+import { extend } from '../shared'
+
 /*
  * @Author: Heyafeng
  * @Date: 2022-07-10 10:48:36
  * @LastEditors: Heyafeng
- * @LastEditTime: 2022-07-10 12:39:36
+ * @LastEditTime: 2022-07-10 18:08:23
  * @Description: effect
  */
 class ReactiveEffect {
   private _fn: any
+  deps = []
+  active = true
   public scheduler: any
-  constructor(fn: Function, scheduler?) {
+  onStop?: () => void
+  constructor(fn: any, scheduler?) {
     this._fn = fn
     this.scheduler = scheduler
   }
@@ -17,6 +22,22 @@ class ReactiveEffect {
     activeEffect = this
     return this._fn()
   }
+
+  stop() {
+    if (this.active) {
+      cleanupEffect(this)
+      if (this.onStop) {
+        this.onStop()
+      }
+      this.active = false
+    }
+  }
+}
+
+function cleanupEffect(effect) {
+  effect.deps.forEach((dep: any) => {
+    dep.delete(effect)
+  })
 }
 
 let targetMap = new Map()
@@ -37,8 +58,11 @@ export function track(target, key) {
     depMap.set(key, dep)
   }
 
+  if (!activeEffect) return
+
   // 存放实例
   dep.add(activeEffect)
+  activeEffect.deps.push(dep)
 }
 
 export function trigger(target, key) {
@@ -60,7 +84,15 @@ export function trigger(target, key) {
 let activeEffect
 export function effect(fn: Function, options: any = {}) {
   const _effect = new ReactiveEffect(fn, options.scheduler)
+  extend(_effect, options)
   _effect.run()
 
-  return _effect.run.bind(_effect)
+  const runner: any = _effect.run.bind(_effect)
+  runner.effect = _effect
+
+  return runner
+}
+
+export function stop(runner) {
+  runner.effect.stop()
 }
